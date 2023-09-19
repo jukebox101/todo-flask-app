@@ -1,10 +1,42 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+db=SQLAlchemy(app)
 
-@app.route('/')
+class Todo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.String(200), nullable=False)
+    completed = db.Column(db.Integer, default=0)
+    data_created = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        # returns string (Task) and id every time we make new element
+        # %r is the id for the Task
+        return '<Task %r>' % self.id
+
+
+@app.route('/', methods=['POST', 'GET'])
 def index():
-    return render_template('index.html')
+    if request.method == 'POST':
+        # variable holds the input data from the form with id 'content'
+        task_content = request.form['content']
+        new_task = Todo(content = task_content)
+
+        try:
+            db.session.add(new_task)
+            db.session.commit()
+            # redirects back to index page
+            return redirect('/')
+        except:
+            return 'There was an issue adding your task'
+
+    else:
+        # tasks variable holds all database content in order by date created
+        tasks = Todo.query.order_by(Todo.data_created).all()
+        return render_template('index.html', tasks=tasks)
 
 if __name__ == "__main__":
     app.run(debug=True)
